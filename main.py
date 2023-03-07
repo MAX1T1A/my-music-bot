@@ -1,96 +1,75 @@
 import os
-import time
-
-import requests
+from typing import Dict, List
 import telebot
-
-from bs4 import BeautifulSoup
 from telebot import types
+from parser import Parser, MusicParser
 
-from config import TOKEN_API
+# создаем экземпляр бота, используя токен
+bot = telebot.TeleBot(token=TOKEN_API)
 
-bot = telebot.TeleBot(TOKEN_API)
-
-
-link = "https://ru.hitmotop.com/search?q="
-
-
-def get_all_title(title):
-    response = requests.get(link + title)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    song_title = [title.text.strip() for title in soup.find_all("div", class_="track__title")]
-    song_auther = [auther.text.strip() for auther in soup.find_all("div", class_="track__desc")]
-
-    song_music = {}
-
-    for i in range(0, len(song_title)):
-        song_music[song_title[i]] = song_auther[i]
-
-    return None if song_music == {} else song_music
+# URL для поиска песен
+link: str = "https://ru.hitmotop.com/search?q="
 
 
-def get_title(song_name: str) -> str:
-    response = requests.get(link + song_name)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    song_title = soup.find("div", class_="track__title").text.strip()
-
-    song_title_auther = soup.find("div", class_="track__desc").text.strip()
-
-    return f"{song_title} - {song_title_auther}"
-
-
-def download_music(song_name: str):
-    page = requests.get(link + song_name)
-    soup = BeautifulSoup(page.text, "html.parser")
-
-    song_link = soup.find("a", class_="track__download-btn").get("href")
-    response = requests.get(song_link, stream=True)
-
-    with open(get_title(song_name) + ".mp3", "wb") as file:
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
-            file.write(chunk) if chunk else ValueError("NOT UPLOADED")
-
-
-def delete_music(song_name: str):
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), f"{get_title(song_name)}.mp3")
-    os.remove(path)
-
-
+# обработчик команды /start
 @bot.message_handler(commands=["start"])
-def start(message):
-    bot.send_message(message.chat.id, "Введите название песни, куторую хотите найти...")
+def start_cmd(message: types.Message):
+    # Отправляем пользователю сообщение с запросом названия песни
+    bot.send_message(chat_id=message.chat.id, text="Введите название песни, которую хотите найти...")
 
 
+# обработчик входящих сообщений с текстом
 @bot.message_handler(content_types=["text"])
-def text_song(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+def message_decorator(message: types.Message):
+    # Создаем объект класса MusicParser для извлечения информации со страницы по указанному названию песни
+    music_parser: MusicParser = MusicParser(link=link, title=message.text)
 
-    if get_all_title(message.text) is None:
-        return bot.send_message(message.chat.id, "По вашему запросу ничего не найдено...")
+    def search_cmd(parser: MusicParser) -> telebot.TeleBot:
+        # Инициализируем новую клавиатуру, которая будет отображаться пользователю
+        markup: types.ReplyKeyboardMarkup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    for key, value in get_all_title(message.text).items():
-        markup.add(types.KeyboardButton(text=f"{key} - {value}"))
+        # Если на странице нет результатов, отправляем сообщение и завершаем функцию
+        if parser.get_all_title() is None:
+            return bot.send_message(chat_id=message.chat.id, text="По вашему запросу ничего не найдено...")
 
-    bot.send_message(message.chat.id, "Выберите ту, что вам нужна...", reply_markup=markup)
-    return bot.register_next_step_handler(message, halo)
+        # Создаем кнопку для каждой песни в результате поиска
+        for keys, values in parser.create_dict().items():
+            markup.add(types.KeyboardButton(text=f"{keys} - {values}"))
+
+        # Отправляем клавиатуру пользователю
+        bot.send_message(chat_id=message.chat.id, text="Выберите ту, что вам нужна...", reply_markup=markup)
+
+        # Регистрируем обработчик следующего входящего сообщения со списком найденных песен и выбранной пользователем песней
+        # Он будет вызван после выбора пользователем конкретной песни.
+        return bot.register_next_step_handler(message=message, callback=main_worker, parser=parser)
+
+    def main_worker(msg: types.Message, parser: MusicParser):
+        # Скачиваем выбранную песню на жесткий диск
+        parser.download_audio()
+
+        # Получаем полный путь к загруженному музыкальному файлу
+        audio_file_path = os.path.join(os.getcwd(), f"{parser.get_title()}.mp3")
+
+        # Отправляем загруженную песню пользователю в виде аудио-файла
+        try:
+            with open(file=audio_file_path, mode="rb") as audio:
+                audio.seek(0)
+                bot.send_audio(chat_id=msg.chat.id, audio=audio, reply_markup=types.ReplyKeyboardRemove())
+        except Exception as e:
+            # Если при отправке файла возникла ошибка, отправляем сообщение об ошибке пользователю
+            bot.send_message(chat_id=msg.chat.id, text=f"Произошла ошибка: {str(e)}")
+
+        # Удаляем загруженный файл c жесткого диска
+        try:
+            parser.delete_audio()
+        except Exception as e:
+            # Если при удалении файла возникла ошибка, выводим ее в консоль для дальнейшей диагностики
+            print(f"Error deleting file: {e}")
+
+    # Вызываем функцию search_cmd для начала поиска и отображения списка найденных песен
+    return search_cmd(music_parser)
 
 
-def halo(message):
-    bot.send_message(message.chat.id, "Подождите, идет загрузка...")
-    download_music(message.text)
-    audio = open(os.path.join(os.path.abspath(os.path.dirname(__file__)), f"{get_title(message.text)}.mp3"), "rb")
-    bot.send_audio(message.chat.id, audio, reply_markup=types.ReplyKeyboardRemove())
-    bot.delete_message(message.chat.id, message.message_id + 1)
-    audio.close()
-    delete_music(message.text)
-
-
-while True:
-    try:
-        bot.polling(none_stop=True)
-
-    except Exception as e:
-        print(e.args[0])
-        time.sleep(15)
+if __name__ == "__main__":
+    # Запускаем бота в бесконечном цикле
+    bot.polling(none_stop=True)
