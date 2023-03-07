@@ -3,6 +3,8 @@ from typing import Dict, List
 import telebot
 from telebot import types
 from parser import Parser, MusicParser
+from config import TOKEN_API
+
 
 # создаем экземпляр бота, используя токен
 bot = telebot.TeleBot(token=TOKEN_API)
