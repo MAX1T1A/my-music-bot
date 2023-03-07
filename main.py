@@ -8,9 +8,6 @@ from config import TOKEN_API
 # создаем экземпляр бота, используя токен
 bot = telebot.TeleBot(token=TOKEN_API)
 
-# URL для поиска песен
-link: str = "https://ru.hitmotop.com/search?q="
-
 
 # обработчик команды /start
 @bot.message_handler(commands=["start"])
@@ -23,7 +20,7 @@ def start_cmd(message: types.Message):
 @bot.message_handler(content_types=["text"])
 def message_decorator(message: types.Message):
     # Создаем объект класса MusicParser для извлечения информации со страницы по указанному названию песни
-    music_parser: MusicParser = MusicParser(link=link, title=message.text)
+    music_parser: MusicParser = MusicParser(title=message.text)
 
     def search_cmd(parser: MusicParser) -> telebot.TeleBot:
         # Инициализируем новую клавиатуру, которая будет отображаться пользователю

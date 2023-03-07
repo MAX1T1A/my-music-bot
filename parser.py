@@ -6,12 +6,15 @@ from requests import Response
 
 
 class Parser:
+    # URL для поиска песен
+    link: str = "https://ru.hitmotop.com/search?q="
+
     # Конструктор класса. Принимает два параметра:
     # `link` - URL страницы, с которой надо извлечь информацию.
     # `title` - заголовок страницы.
-    def __init__(self, link: str, title: str):
+    def __init__(self, title: str):
         # Выполянем запрос на указанный `link` и сохраняем ответ `response`.
-        self.response: Response = requests.get(link + title)
+        self.response: Response = requests.get(self.link + title)
 
     # Метод `soup` возвращает объект `BeautifulSoup`, который используется для парсинга HTML-кода.
     def soup(self) -> BeautifulSoup:
