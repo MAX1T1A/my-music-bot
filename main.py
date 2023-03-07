@@ -1,8 +1,7 @@
 import os
-from typing import Dict, List
 import telebot
 from telebot import types
-from parser import Parser, MusicParser
+from parser import MusicParser
 from config import TOKEN_API
 
 
