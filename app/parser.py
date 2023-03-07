@@ -25,13 +25,13 @@ class Parser:
     # - список имен и фамилий авторов композиций.
     def get_all_title(self) -> Optional[tuple[List[str], List[str]]]:
         # Извлекаем из HTML-кода все заголовки композиций.
-        title = [title.text.strip() for title in self.soup().find_all("div", class_="track__title")]
+        titles = [title.text.strip() for title in self.soup().find_all("div", class_="track__title")]
         # Извлекаем из HTML-кода все имена и фамилии авторов композиций.
-        author = [author.text.strip() for author in self.soup().find_all("div", class_="track__desc")]
+        authors = [author.text.strip() for author in self.soup().find_all("div", class_="track__desc")]
 
         # Если список заголовков не пустой, возвращаем кортеж со списками заголовков и имен авторов.
         # Если список заголовков пустой, возвращаем None.
-        return (title, author) if title else None
+        return (titles, authors) if titles else None
 
     # Метод `get_title` возвращает заголовок и имя автора первой композиции.
     def get_title(self) -> str:
@@ -72,4 +72,4 @@ class MusicParser(Parser):
     # Метод `delete_audio` удаляет загруженный музыкальный файл.
     def delete_audio(self) -> None:
         # Удаление файла происходит с помощью метода `os.remove`.
-        os.remove(path=os.path.join(os.path.abspath(os.path.dirname(__file__)), f"{self.get_title()}.mp3"))
+        os.remove(path=os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", f"{self.get_title()}.mp3"))
