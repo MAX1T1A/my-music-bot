@@ -55,7 +55,7 @@ def message_decorator(message: types.Message):
                 audio.seek(0)
                 bot.send_audio(chat_id=msg.chat.id, audio=audio, reply_markup=types.ReplyKeyboardRemove())
                 bot.delete_message(chat_id=msg.chat.id, message_id=msg.message_id + 1, timeout=5)
-                bot.send_message(chat_id=msg.chat.id, text="Загрузка успешно завершена ✅.")
+                bot.send_message(chat_id=msg.chat.id, text="Загрузка успешно завершена ✅")
         except Exception as e:
             # Если при отправке файла возникла ошибка, отправляем сообщение об ошибке пользователю
             bot.send_message(chat_id=msg.chat.id, text=f"Произошла ошибка: {str(e)}")
